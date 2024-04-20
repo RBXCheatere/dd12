@@ -285,7 +285,7 @@ setmetatable(option, {
 
 -- Initialize text based on initial value
 option.Text = option.text
-
+end
 library.createToggle = function(option, parent)
 	option.hasInit = true
 
