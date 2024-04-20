@@ -206,6 +206,24 @@ library.createDivider = function(option, parent)
 
 	
 
+-- Function to animate typing and deleting text
+local function animateText(textLabel, text)
+    while true do
+        -- Type out the full text
+        for i = 1, #text do
+            textLabel.Text = string.sub(text, 1, i)
+            wait(0.1)  -- Adjust the speed of typing
+        end
+
+        -- Delete text character by character
+        for i = #text, 1, -1 do
+            textLabel.Text = string.sub(text, 1, i)
+            wait(0.1)  -- Adjust the speed of deletion
+        end
+    end
+end
+
+-- Creating the TextLabel
 option.title = library:Create("TextLabel", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -218,26 +236,7 @@ option.title = library:Create("TextLabel", {
     Parent = option.main
 })
 
-local function animateText()
-    local fullText = option.title.Text
-    local textLength = fullText:len()
-    local displayText = ""
-    
-    while true do
-        for i = 1, textLength do
-            displayText = fullText:sub(1, i)
-            option.title.Text = displayText
-            wait(0.1) -- Adjust the speed of typing here (smaller value for faster)
-        end
-        
-        for i = textLength, 1, -1 do
-            displayText = fullText:sub(1, i)
-            option.title.Text = displayText
-            wait(0.1) -- Adjust the speed of deletion here (smaller value for faster)
-        end
-    end
-end
-
+-- Set up metatable to handle text changes
 setmetatable(option, {
     __newindex = function(t, i, v)
         if i == "Text" then
@@ -245,7 +244,8 @@ setmetatable(option, {
                 option.title.Text = tostring(v)
                 option.title.Size = UDim2.new(0, textService:GetTextSize(option.title.Text, 15, Enum.Font.Code, Vector2.new(9e9, 9e9)).X + 12, 0, 20)
                 option.main.Size = UDim2.new(1, 0, 0, 18)
-                coroutine.wrap(animateText)() -- Start the animation coroutine
+                -- Start the text animation coroutine
+                coroutine.wrap(animateText)(option.title, option.title.Text)
             else
                 option.title.Text = ""
                 option.title.Size = UDim2.new()
@@ -255,7 +255,9 @@ setmetatable(option, {
     end
 })
 
-option.Text = option.text
+-- Assigning the initial text
+option.Text = option.text  -- Assuming option.text is set elsewhere
+end
 library.createToggle = function(option, parent)
 	option.hasInit = true
 
