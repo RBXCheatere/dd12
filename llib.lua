@@ -227,56 +227,64 @@ library.createDivider = function(option, parent)
 		Parent = option.main
 	})
 
-	option.title = library:Create("TextLabel", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
-		BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-		BorderSizePixel = 0,
-		TextColor3 =  Color3.new(1, 1, 1),
-		TextSize = 15,
-		Font = Enum.Font.Code,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		Parent = option.main
-	})
+	-- Define a function to animate typing and deleting text
+local function animateText(textLabel, text)
+    local textLength = #text
+    local delay = 0.05 -- Adjust the typing speed (smaller values mean faster typing)
 
+    -- Typing animation
+    for i = 1, textLength do
+        textLabel.Text = string.sub(text, 1, i)
+        wait(delay)
+    end
+
+    -- Delay before deleting
+    wait(1.5) -- Adjust the delay before deletion
+
+    -- Deleting animation
+    for i = textLength, 1, -1 do
+        textLabel.Text = string.sub(text, 1, i - 1)
+        wait(delay)
+    end
+
+    -- Repeat animation (recursive call)
+    animateText(textLabel, text)
+end
+
+-- Creating the TextLabel
+option.title = library:Create("TextLabel", {
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+    BorderSizePixel = 0,
+    TextColor3 = Color3.new(1, 1, 1),
+    TextSize = 15,
+    Font = Enum.Font.Code,
+    TextXAlignment = Enum.TextXAlignment.Center,
+    Parent = option.main
+})
+
+-- Set up the metatable to handle text changes
 setmetatable(option, {
     __newindex = function(t, i, v)
         if i == "Text" then
             if v then
-                local text = tostring(v)
-                option.title.Text = "" -- Clear previous text
-                option.main.Size = UDim2.new(1, 0, 0, 18) -- Set main size
-
-                -- Function to animate typing and deleting text
-                local function animateText()
-                    local len = #text
-                    local interval = 0.05 -- Adjust the typing speed
-
-                    -- Typing animation
-                    for i = 1, len do
-                        option.title.Text = string.sub(text, 1, i)
-                        wait(interval)
-                    end
-
-                    -- Deleting animation
-                    for i = len, 1, -1 do
-                        option.title.Text = string.sub(text, 1, i - 1)
-                        wait(interval)
-                    end
-                end
-
-                -- Start the animation
-                spawn(animateText)
+                -- Animate typing and deletion of text
+                animateText(option.title, tostring(v))
+                option.title.Size = UDim2.new(0, textService:GetTextSize(option.title.Text, 15, Enum.Font.Code, Vector2.new(9e9, 9e9)).X + 12, 0, 20)
+                option.main.Size = UDim2.new(1, 0, 0, 18)
             else
+                -- Clear text and adjust size
                 option.title.Text = ""
+                option.title.Size = UDim2.new()
                 option.main.Size = UDim2.new(1, 0, 0, 6)
             end
         end
     end
 })
 
-option.Text = option.text -- Trigger the animation with the desired text
-
+-- Initialize text based on initial value
+option.Text = option.text
 
 library.createToggle = function(option, parent)
 	option.hasInit = true
