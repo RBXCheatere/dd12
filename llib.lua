@@ -7,7 +7,7 @@ if getgenv().library then
 	getgenv().library:Unload()
 end
 
-local library = {design = getgenv().design == "kali" and "kali", tabs = {}, draggable = true, flags = {}, title = "Carma.Solutions", open = false, mousestate = inputService.MouseIconEnabled,popup = nil, instances = {}, connections = {}, options = {}, notifications = {}, tabSize = 0, theme = {}, foldername = "Carma.Solutions", fileext = ".json"}
+local library = {design = getgenv().design == "kali" and "kali", tabs = {}, draggable = true, flags = {}, title = "awakenkn-hub", open = false, mousestate = inputService.MouseIconEnabled,popup = nil, instances = {}, connections = {}, options = {}, notifications = {}, tabSize = 0, theme = {}, foldername = "awakenkn-hubv3", fileext = ".json"}
 if getgenv().scripttitle then
     library.title = getgenv().scripttitle
 end
@@ -70,103 +70,80 @@ function library:AddConnection(connection, name, callback)
 end
 
 function library:Unload()
-    -- Restore mouse icon state
-    if inputService then
-        inputService.MouseIconEnabled = self.mouseState
-    end
-    
-    -- Disconnect all connections
-    for _, connection in ipairs(self.connections) do
-        connection:Disconnect()
-    end
-    
-    -- Clean up instances
-    for _, instanceData in ipairs(self.instances) do
-        local instance = instanceData.object
-        if instanceData.method then
-            pcall(instance.Remove, instance)
-        else
-            instance:Destroy()
-        end
-    end
-    
-    -- Resume toggle options
-    for _, option in ipairs(self.options) do
-        if option.type == "toggle" and type(option.SetState) == "function" then
-            coroutine.wrap(option.SetState)(option)
-        end
-    end
-    
-    -- Clean up references
-    library = nil
-    getgenv().library = nil
+	inputService.MouseIconEnabled = self.mousestate
+	for _, c in next, self.connections do
+		c:Disconnect()
+	end
+	for _, i in next, self.instances do
+		if i.method then
+			pcall(function() i.object:Remove() end)
+		else
+			i.object:Destroy()
+		end
+	end
+	for _, o in next, self.options do
+		if o.type == "toggle" then
+			coroutine.resume(coroutine.create(o.SetState, o))
+		end
+	end
+	library = nil
+	getgenv().library = nil
 end
 
-
--- Save configuration to file
-function library:SaveConfig(configName)
-    local config = {}
-    local configFile = self.foldername .. "/" .. configName .. self.fileext
-
-    -- Check if the config file exists before attempting to read
-    if isfile(configFile) then
-        local success, decodedConfig = pcall(function()
-            return game:GetService("HttpService"):JSONDecode(readfile(configFile))
-        end)
-        
-        if success then
-            config = decodedConfig
-        else
-            warn("Error decoding existing config file:", configName)
-        end
-    end
-
-    -- Update config based on options
-    for _, option in ipairs(self.options) do
-        if option.type ~= "button" and option.flag and not option.skipflag then
-            if option.type == "toggle" then
-                config[option.flag] = option.state and 1 or 0
-            elseif option.type == "color" then
-                config[option.flag] = {option.color.r, option.color.g, option.color.b}
-                if option.trans then
-                    config[option.flag .. " Transparency"] = option.trans
-                end
-            elseif option.type == "bind" then
-                if option.key ~= "none" then
-                    config[option.flag] = option.key
-                end
-            elseif option.type == "list" then
-                config[option.flag] = option.value
-            else
-                config[option.flag] = option.value
-            end
-        end
-    end
-
-    -- Save updated config to file
-    writefile(configFile, game:GetService("HttpService"):JSONEncode(config))
+function library:LoadConfig(config)
+	if table.find(self:GetConfigs(), config) then
+		local Read, Config = pcall(function() return game:GetService"HttpService":JSONDecode(readfile(self.foldername .. "/" .. config .. self.fileext)) end)
+		Config = Read and Config or {}
+		for _, option in next, self.options do
+			if option.hasInit then
+				if option.type ~= "button" and option.flag and not option.skipflag then
+					if option.type == "toggle" then
+						spawn(function() option:SetState(Config[option.flag] == 1) end)
+					elseif option.type == "color" then
+						if Config[option.flag] then
+							spawn(function() option:SetColor(Config[option.flag]) end)
+							if option.trans then
+								spawn(function() option:SetTrans(Config[option.flag .. " Transparency"]) end)
+							end
+						end
+					elseif option.type == "bind" then
+						spawn(function() option:SetKey(Config[option.flag]) end)
+					else
+						spawn(function() option:SetValue(Config[option.flag]) end)
+					end
+				end
+			end
+		end
+	end
 end
 
--- Retrieve list of config files
-function library:GetConfigs()
-    if not isfolder(self.foldername) then
-        makefolder(self.foldername)
-        return {}
-    end
-
-    local files = {}
-    local fileExtLength = #self.fileext
-
-    for _, file in ipairs(listfiles(self.foldername)) do
-        if file:sub(-fileExtLength) == self.fileext then
-            local fileName = file:sub(1, -(fileExtLength + 1)) -- Remove file extension
-            table.insert(files, fileName)
-        end
-    end
-
-    return files
+function library:SaveConfig(config)
+	local Config = {}
+	if table.find(self:GetConfigs(), config) then
+		Config = pcall(function() return game:GetService"HttpService":JSONDecode(readfile(self.foldername .. "/" .. config .. self.fileext)) end)
+	end
+	for _, option in next, self.options do
+		if option.type ~= "button" and option.flag and not option.skipflag then
+			if option.type == "toggle" then
+				Config[option.flag] = option.state and 1 or 0
+			elseif option.type == "color" then
+				Config[option.flag] = {option.color.r, option.color.g, option.color.b}
+				if option.trans then
+					Config[option.flag .. " Transparency"] = option.trans
+				end
+			elseif option.type == "bind" then
+				if option.key ~= "none" then
+					Config[option.flag] = option.key
+				end
+			elseif option.type == "list" then
+				Config[option.flag] = option.value
+			else
+				Config[option.flag] = option.value
+			end
+		end
+	end
+	writefile(self.foldername .. "/" .. config .. self.fileext, game:GetService"HttpService":JSONEncode(Config))
 end
-
 
 function library:GetConfigs()
 	if not isfolder(self.foldername) then
@@ -227,31 +204,8 @@ library.createDivider = function(option, parent)
 		Parent = option.main
 	})
 
-	-- Define a function to animate typing and deleting text
-local function animateText(textLabel, text)
-    local textLength = #text
-    local delay = 0.05 -- Adjust the typing speed (smaller values mean faster typing)
+	
 
-    -- Typing animation
-    for i = 1, textLength do
-        textLabel.Text = string.sub(text, 1, i)
-        wait(delay)
-    end
-
-    -- Delay before deleting
-    wait(1.5) -- Adjust the delay before deletion
-
-    -- Deleting animation
-    for i = textLength, 1, -1 do
-        textLabel.Text = string.sub(text, 1, i - 1)
-        wait(delay)
-    end
-
-    -- Repeat animation (recursive call)
-    animateText(textLabel, text)
-end
-
--- Creating the TextLabel
 option.title = library:Create("TextLabel", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -264,17 +218,35 @@ option.title = library:Create("TextLabel", {
     Parent = option.main
 })
 
--- Set up the metatable to handle text changes
+local function animateText()
+    local fullText = option.title.Text
+    local textLength = fullText:len()
+    local displayText = ""
+    
+    while true do
+        for i = 1, textLength do
+            displayText = fullText:sub(1, i)
+            option.title.Text = displayText
+            wait(0.1) -- Adjust the speed of typing here (smaller value for faster)
+        end
+        
+        for i = textLength, 1, -1 do
+            displayText = fullText:sub(1, i)
+            option.title.Text = displayText
+            wait(0.1) -- Adjust the speed of deletion here (smaller value for faster)
+        end
+    end
+end
+
 setmetatable(option, {
     __newindex = function(t, i, v)
         if i == "Text" then
             if v then
-                -- Animate typing and deletion of text
-                animateText(option.title, tostring(v))
+                option.title.Text = tostring(v)
                 option.title.Size = UDim2.new(0, textService:GetTextSize(option.title.Text, 15, Enum.Font.Code, Vector2.new(9e9, 9e9)).X + 12, 0, 20)
                 option.main.Size = UDim2.new(1, 0, 0, 18)
+                coroutine.wrap(animateText)() -- Start the animation coroutine
             else
-                -- Clear text and adjust size
                 option.title.Text = ""
                 option.title.Size = UDim2.new()
                 option.main.Size = UDim2.new(1, 0, 0, 6)
@@ -283,9 +255,7 @@ setmetatable(option, {
     end
 })
 
--- Initialize text based on initial value
 option.Text = option.text
-end
 library.createToggle = function(option, parent)
 	option.hasInit = true
 
