@@ -257,7 +257,7 @@ setmetatable(option, {
 
 -- Assigning the initial text
 option.Text = option.text  -- Assuming option.text is set elsewhere
-end
+e
 library.createToggle = function(option, parent)
 	option.hasInit = true
 
